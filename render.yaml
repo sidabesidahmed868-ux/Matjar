@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: matjar-saas
+    env: node
+    plan: free
+    buildCommand: echo "No build needed"
+    startCommand: node server.js
+    envVars:
+      - key: PORT
+        value: 10000
+      - key: NODE_ENV
+        value: production
+    disk:
+      name: data
+      mountPath: /app/data
+      sizeGB: 1

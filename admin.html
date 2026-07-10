@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>لوحة التحكم المركزية — منصة المتاجر</title>
+<style>
+:root {
+  --navy:#0f1f3d; --blue:#1a3a6b; --accent:#2563eb; --green:#059669;
+  --red:#dc2626; --orange:#d97706; --gray:#64748b; --light:#f1f5f9;
+  --card:#fff; --border:#e2e8f0; --text:#1e293b; --muted:#64748b;
+  --r:10px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:"Segoe UI",Tahoma,Arial,sans-serif;background:var(--light);color:var(--text);min-height:100vh;direction:rtl}
+/* ── تسجيل دخول ── */
+#loginWrap{min-height:100vh;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,var(--navy),var(--blue))}
+.login-box{background:#fff;border-radius:16px;padding:40px;width:100%;max-width:380px;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+.login-box .logo{text-align:center;font-size:42px;margin-bottom:10px}
+.login-box h1{text-align:center;color:var(--navy);font-size:20px;margin-bottom:4px}
+.login-box .sub{text-align:center;color:var(--muted);font-size:13px;margin-bottom:24px}
+.login-box .err{color:var(--red);font-size:13px;text-align:center;min-height:18px;margin-bottom:8px}
+.f-group{margin-bottom:14px}
+.f-group label{display:block;font-weight:600;font-size:13px;margin-bottom:5px;color:var(--text)}
+.f-group input{width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit;text-align:right;transition:border .2s}
+.f-group input:focus{outline:none;border-color:var(--accent)}
+/* ── تخطيط رئيسي ── */
+#appWrap{display:flex;min-height:100vh}
+.sidebar{width:220px;flex-shrink:0;background:var(--navy);color:#fff;display:flex;flex-direction:column;padding:0}
+.sidebar .brand{padding:20px 16px;border-bottom:1px solid rgba(255,255,255,.1)}
+.sidebar .brand .icon{font-size:28px}
+.sidebar .brand h2{font-size:15px;margin-top:4px;color:#e2e8f0}
+.sidebar .brand .ver{font-size:11px;color:rgba(255,255,255,.4);margin-top:2px}
+.sidebar nav{flex:1;padding:12px 0}
+.nav-item{display:flex;align-items:center;gap:10px;padding:11px 18px;color:rgba(255,255,255,.7);cursor:pointer;border-right:3px solid transparent;transition:all .15s;font-size:14px}
+.nav-item:hover{background:rgba(255,255,255,.07);color:#fff}
+.nav-item.active{background:rgba(37,99,235,.25);color:#fff;border-right-color:var(--accent)}
+.nav-item .icon{font-size:18px;width:24px;text-align:center}
+.sidebar .bottom{padding:14px;border-top:1px solid rgba(255,255,255,.1)}
+.main{flex:1;overflow-y:auto;background:var(--light)}
+.topbar{background:#fff;border-bottom:1px solid var(--border);padding:14px 24px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:10}
+.topbar h1{font-size:17px;color:var(--navy);font-weight:700}
+.topbar .right{display:flex;align-items:center;gap:10px}
+.page{padding:24px;display:none}
+.page.active{display:block}
+/* ── بطاقات الإحصائيات ── */
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:24px}
+.stat-card{background:#fff;border-radius:var(--r);padding:18px;border:1px solid var(--border);display:flex;align-items:center;gap:14px}
+.stat-card .icon{width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0}
+.stat-card .num{font-size:26px;font-weight:800;line-height:1}
+.stat-card .lbl{font-size:12px;color:var(--muted);margin-top:3px}
+/* ── جدول المتاجر ── */
+.card{background:#fff;border:1px solid var(--border);border-radius:var(--r);overflow:hidden;margin-bottom:20px}
+.card-header{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px}
+.card-header h3{font-size:15px;font-weight:700;color:var(--navy)}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{background:var(--light);padding:10px 14px;text-align:right;color:var(--muted);font-weight:600;white-space:nowrap;border-bottom:2px solid var(--border)}
+td{padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:middle}
+tr:hover td{background:#f8fafc}
+tr:last-child td{border-bottom:none}
+/* ── أزرار ── */
+.btn{display:inline-flex;align-items:center;gap:5px;padding:8px 16px;border:none;border-radius:7px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s;text-decoration:none}
+.btn:hover{opacity:.88;transform:translateY(-1px)}
+.btn-primary{background:var(--accent);color:#fff}
+.btn-success{background:var(--green);color:#fff}
+.btn-danger{background:var(--red);color:#fff}
+.btn-orange{background:var(--orange);color:#fff}
+.btn-ghost{background:transparent;color:var(--gray);border:1.5px solid var(--border)}
+.btn-sm{padding:5px 10px;font-size:12px}
+.btn-logout{background:rgba(255,255,255,.1);color:#fff;border:1px solid rgba(255,255,255,.2);padding:7px 14px;font-size:13px}
+/* ── بادجات ── */
+.badge{display:inline-flex;align-items:center;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:600}
+.badge-active{background:#dcfce7;color:#166534}
+.badge-suspended{background:#fee2e2;color:#991b1b}
+.badge-free{background:#dbeafe;color:#1e40af}
+.badge-pro{background:#fef3c7;color:#92400e}
+.badge-enterprise{background:#f3e8ff;color:#6b21a8}
+/* ── مودال ── */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:1000;padding:16px}
+.modal{background:#fff;border-radius:14px;width:100%;max-width:520px;max-height:90vh;overflow-y:auto;box-shadow:0 25px 60px rgba(0,0,0,.25)}
+.modal-head{padding:18px 22px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
+.modal-head h2{font-size:16px;font-weight:700;color:var(--navy)}
+.modal-body{padding:20px 22px}
+.modal-foot{padding:14px 22px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px}
+.form-row{display:grid;grid-template-columns:130px 1fr;align-items:center;gap:10px;margin-bottom:12px}
+.form-row label{font-size:13px;font-weight:600;text-align:right}
+.form-row input,.form-row select{width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:7px;font-family:inherit;font-size:13px;text-align:right;transition:border .2s}
+.form-row input:focus,.form-row select:focus{outline:none;border-color:var(--accent)}
+/* ── رابط المتجر ── */
+.store-url{display:inline-flex;align-items:center;gap:6px;background:var(--light);padding:3px 10px;border-radius:20px;font-size:12px;color:var(--accent);text-decoration:none;font-family:monospace}
+.store-url:hover{background:#dbeafe}
+/* ── التوست ── */
+#toasts{position:fixed;top:16px;left:50%;transform:translateX(-50%);z-index:9999;display:flex;flex-direction:column;gap:8px;align-items:center}
+.toast{padding:10px 20px;border-radius:8px;color:#fff;font-size:13px;font-weight:600;box-shadow:0 4px 14px rgba(0,0,0,.2);animation:fadeIn .2s}
+.toast.ok{background:var(--green)}
+.toast.err{background:var(--red)}
+@keyframes fadeIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
+/* ── مربع معلومات المتجر ── */
+.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.info-item{background:var(--light);border-radius:8px;padding:12px}
+.info-item .k{font-size:11px;color:var(--muted);margin-bottom:4px}
+.info-item .v{font-size:16px;font-weight:700;color:var(--navy)}
+/* ── خطوط عرض جانبي ── */
+@media(max-width:768px){.sidebar{width:100%;height:auto;flex-direction:row;overflow-x:auto}.stats-grid{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+
+<!-- شاشة تسجيل الدخول -->
+<div id="loginWrap">
+  <div class="login-box">
+    <div class="logo">🏗️</div>
+    <h1>لوحة التحكم المركزية</h1>
+    <div class="sub">منصة إدارة المتاجر</div>
+    <div class="err" id="loginErr"></div>
+    <div class="f-group"><label>اسم المستخدم</label><input type="text" id="loginUser" value="superadmin" autocomplete="username"></div>
+    <div class="f-group"><label>كلمة المرور</label><input type="password" id="loginPass" autocomplete="current-password"></div>
+    <button class="btn btn-primary" style="width:100%;justify-content:center;padding:11px" id="loginBtn">دخول</button>
+  </div>
+</div>
+
+<!-- التطبيق الرئيسي -->
+<div id="appWrap" style="display:none">
+  <div class="sidebar">
+    <div class="brand">
+      <div class="icon">🏗️</div>
+      <h2>منصة المتاجر</h2>
+      <div class="ver">لوحة التحكم المركزية</div>
+    </div>
+    <nav>
+      <div class="nav-item active" data-page="dashboard"><span class="icon">📊</span> الرئيسية</div>
+      <div class="nav-item" data-page="stores"><span class="icon">🏪</span> المتاجر</div>
+      <div class="nav-item" data-page="settings"><span class="icon">⚙️</span> إعدادات المنصة</div>
+    </nav>
+    <div class="bottom">
+      <button class="btn btn-logout" id="logoutBtn" style="width:100%;justify-content:center">⬅️ تسجيل الخروج</button>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="topbar">
+      <h1 id="pageTitle">الرئيسية</h1>
+      <div class="right">
+        <span style="font-size:12px;color:var(--muted)" id="topClock"></span>
+        <span style="font-size:12px;background:var(--light);padding:4px 10px;border-radius:6px">👑 superadmin</span>
+      </div>
+    </div>
+
+    <!-- صفحة الرئيسية -->
+    <div class="page active" id="page-dashboard">
+      <div class="stats-grid" id="statsGrid"></div>
+      <div class="card">
+        <div class="card-header">
+          <h3>آخر المتاجر المضافة</h3>
+          <button class="btn btn-primary btn-sm" id="quickAddBtn">➕ متجر جديد</button>
+        </div>
+        <div id="recentStoresTbl"></div>
+      </div>
+    </div>
+
+    <!-- صفحة المتاجر -->
+    <div class="page" id="page-stores">
+      <div class="card">
+        <div class="card-header">
+          <h3>🏪 جميع المتاجر</h3>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <input type="text" id="storeSearch" placeholder="بحث..." style="padding:7px 12px;border:1.5px solid var(--border);border-radius:7px;font-size:13px;width:200px">
+            <button class="btn btn-primary" id="addStoreBtn">➕ إضافة متجر</button>
+          </div>
+        </div>
+        <div id="storesTbl"></div>
+      </div>
+    </div>
+
+    <!-- صفحة الإعدادات -->
+    <div class="page" id="page-settings">
+      <div style="max-width:540px">
+        <div class="card" style="margin-bottom:18px">
+          <div class="card-header"><h3>⚙️ إعدادات المنصة</h3></div>
+          <div class="modal-body" id="settingsForm"></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><h3>🔑 تغيير كلمة مرور المشرف</h3></div>
+          <div class="modal-body">
+            <div class="form-row"><label>الحالية</label><input type="password" id="pwCurrent"></div>
+            <div class="form-row"><label>الجديدة</label><input type="password" id="pwNew"></div>
+            <div style="text-align:left;margin-top:8px">
+              <button class="btn btn-primary" id="changePwBtn">💾 تغيير كلمة المرور</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toasts"></div>
+
+<script>
+"use strict";
+
+/* ── مساعدات ── */
+const $ = id => document.getElementById(id);
+const fmtN = n => Number(n||0).toLocaleString("en-US");
+const fmtC = n => fmtN(n) + " أوقية";
+function escH(s){ return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+
+function toast(msg, ok=true) {
+  const t = document.createElement("div");
+  t.className = `toast ${ok?"ok":"err"}`; t.textContent = msg;
+  $("toasts").appendChild(t); setTimeout(()=>t.remove(), 3200);
+}
+
+async function api(method, url, data) {
+  const opts = { method, credentials:"include", headers:{"Content-Type":"application/json"} };
+  if (data) opts.body = JSON.stringify(data);
+  const r = await fetch(url, opts);
+  return r.json();
+}
+
+/* ── الساعة ── */
+setInterval(()=>{
+  const d=new Date(), p=x=>String(x).padStart(2,"0");
+  $("topClock").textContent = `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+},1000);
+
+/* ── تسجيل دخول ── */
+async function login() {
+  const username = $("loginUser").value;
+  const password = $("loginPass").value;
+  $("loginErr").textContent=""; $("loginBtn").disabled=true; $("loginBtn").textContent="جاري التحقق...";
+  const r = await api("POST","/admin/api/login",{username,password});
+  $("loginBtn").disabled=false; $("loginBtn").textContent="دخول";
+  if (!r.success) { $("loginErr").textContent=r.message; return; }
+  $("loginWrap").style.display = "none";
+  $("appWrap").style.display = "flex";
+  loadAll();
+}
+$("loginBtn").addEventListener("click", login);
+$("loginPass").addEventListener("keydown", e => e.key==="Enter" && login());
+
+/* ── تسجيل خروج ── */
+$("logoutBtn").addEventListener("click", async ()=>{
+  await api("POST","/admin/api/logout");
+  location.reload();
+});
+
+/* ── التنقل ── */
+let allStores = [];
+document.querySelectorAll(".nav-item").forEach(btn=>{
+  btn.addEventListener("click",()=>{
+    document.querySelectorAll(".nav-item").forEach(b=>b.classList.remove("active"));
+    document.querySelectorAll(".page").forEach(p=>p.classList.remove("active"));
+    btn.classList.add("active");
+    const pg = btn.dataset.page;
+    $(`page-${pg}`).classList.add("active");
+    $("pageTitle").textContent = btn.textContent.trim();
+    if (pg==="stores") renderStoresTable(allStores);
+    if (pg==="settings") loadSettings();
+  });
+});
+
+/* ═══════════════════════════════
+   تحميل البيانات
+═══════════════════════════════ */
+async function loadAll() {
+  const [statsR, storesR] = await Promise.all([
+    api("GET","/admin/api/stats"),
+    api("GET","/admin/api/stores"),
+  ]);
+  if (storesR.success) { allStores = storesR.data; }
+  if (statsR.success) renderStats(statsR.data);
+  renderDashboardTable(allStores);
+}
+
+/* ── إحصائيات ── */
+function renderStats(s) {
+  $("statsGrid").innerHTML = [
+    { icon:"🏪", num:s.total,     lbl:"إجمالي المتاجر",   bg:"#dbeafe",color:"#1e40af" },
+    { icon:"✅", num:s.active,    lbl:"المتاجر النشطة",   bg:"#dcfce7",color:"#166534" },
+    { icon:"⏸️", num:s.suspended, lbl:"المتاجر الموقوفة", bg:"#fee2e2",color:"#991b1b" },
+    { icon:"🆓", num:s.plans.free||0, lbl:"الخطة المجانية", bg:"#f3f4f6",color:"#374151" },
+  ].map(c=>`
+    <div class="stat-card">
+      <div class="icon" style="background:${c.bg};color:${c.color}">${c.icon}</div>
+      <div><div class="num" style="color:${c.color}">${c.num}</div><div class="lbl">${c.lbl}</div></div>
+    </div>`).join("");
+}
+
+/* ── جدول المتاجر ── */
+function storeRow(st, full=false) {
+  const statusBadge = st.status==="active"
+    ? '<span class="badge badge-active">● نشط</span>'
+    : '<span class="badge badge-suspended">⏸ موقوف</span>';
+  const planBadge = `<span class="badge badge-${st.plan}">${st.plan==="free"?"مجاني":st.plan==="pro"?"احترافي":"مؤسسي"}</span>`;
+  const url = `/store/${st.slug}`;
+  const stats = st.stats || {};
+  if (!full) return `<tr>
+    <td><b>${escH(st.name)}</b><br><span style="font-size:11px;color:var(--muted)">${escH(st.owner_name)}</span></td>
+    <td><a href="${url}" target="_blank" class="store-url">🔗 /${st.slug}</a></td>
+    <td>${statusBadge}</td>
+    <td>${planBadge}</td>
+    <td>${st.created_at?.slice(0,10)||"-"}</td>
+    <td style="white-space:nowrap">
+      <button class="btn btn-ghost btn-sm" onclick="openEditModal(${st.id})">✏️</button>
+      <button class="btn btn-ghost btn-sm" onclick="toggleStatus(${st.id},'${st.status}')">${st.status==="active"?"⏸":"▶️"}</button>
+      <a href="/admin/api/stores/${st.id}/export" class="btn btn-ghost btn-sm" download>💾</a>
+    </td>
+  </tr>`;
+
+  return `<tr>
+    <td>
+      <b>${escH(st.name)}</b><br>
+      <span style="font-size:11px;color:var(--muted)">${escH(st.owner_name)} · ${escH(st.owner_phone||"-")}</span>
+    </td>
+    <td><a href="${url}" target="_blank" class="store-url">🔗 /${st.slug}</a></td>
+    <td>
+      <span style="font-size:12px;color:var(--muted)">
+        ${stats.sales||0} فاتورة · ${stats.products||0} منتج · ${stats.users||0} مستخدم
+      </span><br>
+      <span style="font-size:12px;color:var(--green)">اليوم: ${fmtN(stats.todaySales||0)} فاتورة</span>
+    </td>
+    <td>${statusBadge}</td>
+    <td>${planBadge}</td>
+    <td>${st.last_activity?.slice(0,10)||"-"}</td>
+    <td style="white-space:nowrap">
+      <button class="btn btn-ghost btn-sm" onclick="openEditModal(${st.id})">✏️ تعديل</button>
+      <button class="btn ${st.status==="active"?"btn-orange":"btn-success"} btn-sm" onclick="toggleStatus(${st.id},'${st.status}')">
+        ${st.status==="active"?"⏸ تعليق":"▶️ تفعيل"}
+      </button>
+      <a href="/admin/api/stores/${st.id}/export" class="btn btn-ghost btn-sm" download>💾 تصدير</a>
+    </td>
+  </tr>`;
+}
+
+function renderDashboardTable(stores) {
+  const recent = [...stores].sort((a,b)=>a.created_at<b.created_at?1:-1).slice(0,6);
+  $("recentStoresTbl").innerHTML = `
+    <table><thead><tr><th>المتجر</th><th>الرابط</th><th>الحالة</th><th>الخطة</th><th>تاريخ الإنشاء</th><th>إجراءات</th></tr></thead>
+    <tbody>${recent.map(s=>storeRow(s,false)).join("") || "<tr><td colspan='6' style='text-align:center;padding:20px;color:var(--muted)'>لا توجد متاجر بعد</td></tr>"}</tbody></table>`;
+}
+
+function renderStoresTable(stores) {
+  const q = $("storeSearch").value.toLowerCase();
+  const filtered = q ? stores.filter(s=>(s.name+s.owner_name+s.slug).toLowerCase().includes(q)) : stores;
+  $("storesTbl").innerHTML = `
+    <table><thead><tr><th>المتجر / المالك</th><th>الرابط</th><th>الإحصائيات</th><th>الحالة</th><th>الخطة</th><th>آخر نشاط</th><th>إجراءات</th></tr></thead>
+    <tbody>${filtered.map(s=>storeRow(s,true)).join("") || "<tr><td colspan='7' style='text-align:center;padding:24px;color:var(--muted)'>لا توجد متاجر</td></tr>"}</tbody></table>`;
+}
+
+$("storeSearch")?.addEventListener("input", ()=> renderStoresTable(allStores));
+
+/* ── تعليق / تفعيل ── */
+window.toggleStatus = async (id, current) => {
+  const newStatus = current === "active" ? "suspended" : "active";
+  const label = newStatus === "active" ? "تفعيل" : "تعليق";
+  if (!confirm(`هل تريد ${label} هذا المتجر؟`)) return;
+  const r = await api("PUT", `/admin/api/stores/${id}/status`, { status: newStatus });
+  if (!r.success) { toast(r.message, false); return; }
+  toast(r.message||"تم التغيير");
+  await loadAll();
+  renderStoresTable(allStores);
+};
+
+/* ═══════════════════════════════
+   نافذة إضافة متجر
+═══════════════════════════════ */
+function openAddModal() {
+  const ov = document.createElement("div");
+  ov.className = "overlay";
+  ov.innerHTML = `
+    <div class="modal">
+      <div class="modal-head">
+        <h2>🏪 إضافة متجر جديد</h2>
+        <button class="btn btn-ghost btn-sm" onclick="this.closest('.overlay').remove()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-row"><label>اسم المتجر *</label><input id="mName" placeholder="متجر الفتح"></div>
+        <div class="form-row"><label>اسم المالك *</label><input id="mOwner" placeholder="محمد ولد أحمد"></div>
+        <div class="form-row"><label>هاتف المالك</label><input id="mOwnerPhone" placeholder="22334455"></div>
+        <div class="form-row"><label>البريد الإلكتروني</label><input id="mEmail" type="email" placeholder="owner@example.com"></div>
+        <div class="form-row"><label>عنوان المتجر</label><input id="mAddr" placeholder="أمورج، موريتانيا"></div>
+        <div class="form-row"><label>هاتف المتجر</label><input id="mPhone" placeholder="22334455"></div>
+        <div class="form-row"><label>الخطة</label>
+          <select id="mPlan">
+            <option value="free">🆓 مجاني</option>
+            <option value="pro">⭐ احترافي</option>
+            <option value="enterprise">🏢 مؤسسي</option>
+          </select>
+        </div>
+        <div style="background:#fef3c7;border-radius:8px;padding:12px;font-size:12px;color:#92400e;margin-top:8px">
+          📝 سيتم إنشاء حساب مدير افتراضي للمتجر: <b>admin / admin123</b><br>
+          يُرجى تغييرها فور تسجيل الدخول للمرة الأولى.
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-ghost" onclick="this.closest('.overlay').remove()">إلغاء</button>
+        <button class="btn btn-success" id="confirmAddStore">✅ إنشاء المتجر</button>
+      </div>
+    </div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener("click", e => e.target===ov && ov.remove());
+
+  ov.querySelector("#confirmAddStore").addEventListener("click", async ()=>{
+    const name = ov.querySelector("#mName").value.trim();
+    const owner_name = ov.querySelector("#mOwner").value.trim();
+    if (!name || !owner_name) { toast("اسم المتجر والمالك مطلوبان",false); return; }
+    const btn = ov.querySelector("#confirmAddStore");
+    btn.disabled=true; btn.textContent="جاري الإنشاء...";
+    const r = await api("POST","/admin/api/stores",{
+      name, owner_name,
+      owner_email: ov.querySelector("#mEmail").value.trim(),
+      owner_phone: ov.querySelector("#mOwnerPhone").value.trim(),
+      address: ov.querySelector("#mAddr").value.trim(),
+      phone: ov.querySelector("#mPhone").value.trim(),
+      plan: ov.querySelector("#mPlan").value,
+    });
+    btn.disabled=false; btn.textContent="✅ إنشاء المتجر";
+    if (!r.success) { toast(r.message||"خطأ",false); return; }
+    toast(`✅ ${r.message}`);
+    ov.remove();
+    await loadAll();
+    renderStoresTable(allStores);
+    // عرض رابط المتجر
+    const url = r.access_url;
+    if (url) {
+      setTimeout(()=>{
+        if (confirm(`تم إنشاء المتجر بنجاح!\nرابط الوصول: ${location.origin}${url}\n\nهل تريد فتح المتجر الآن؟`)) {
+          window.open(url, "_blank");
+        }
+      }, 400);
+    }
+  });
+}
+
+$("addStoreBtn")?.addEventListener("click", openAddModal);
+$("quickAddBtn")?.addEventListener("click", openAddModal);
+
+/* ═══════════════════════════════
+   نافذة تعديل متجر
+═══════════════════════════════ */
+window.openEditModal = (id) => {
+  const st = allStores.find(s=>s.id===id);
+  if (!st) return;
+  const ov = document.createElement("div");
+  ov.className="overlay";
+  ov.innerHTML=`
+    <div class="modal">
+      <div class="modal-head">
+        <h2>✏️ تعديل: ${escH(st.name)}</h2>
+        <button class="btn btn-ghost btn-sm" onclick="this.closest('.overlay').remove()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-row"><label>اسم المتجر</label><input id="eName" value="${escH(st.name)}"></div>
+        <div class="form-row"><label>اسم المالك</label><input id="eOwner" value="${escH(st.owner_name)}"></div>
+        <div class="form-row"><label>هاتف المالك</label><input id="eOwnerPhone" value="${escH(st.owner_phone||"")}"></div>
+        <div class="form-row"><label>البريد الإلكتروني</label><input id="eEmail" value="${escH(st.owner_email||"")}"></div>
+        <div class="form-row"><label>عنوان المتجر</label><input id="eAddr" value="${escH(st.address||"")}"></div>
+        <div class="form-row"><label>هاتف المتجر</label><input id="ePhone" value="${escH(st.phone||"")}"></div>
+        <div class="form-row"><label>الخطة</label>
+          <select id="ePlan">
+            <option value="free" ${st.plan==="free"?"selected":""}>🆓 مجاني</option>
+            <option value="pro" ${st.plan==="pro"?"selected":""}>⭐ احترافي</option>
+            <option value="enterprise" ${st.plan==="enterprise"?"selected":""}>🏢 مؤسسي</option>
+          </select>
+        </div>
+        <div style="background:#f1f5f9;border-radius:8px;padding:12px;font-size:12px;color:var(--muted);margin-top:8px">
+          رابط المتجر: <a href="/store/${st.slug}" target="_blank" style="color:var(--accent)">/store/${st.slug}</a>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-ghost" onclick="this.closest('.overlay').remove()">إلغاء</button>
+        <button class="btn btn-primary" id="confirmEdit">💾 حفظ التغييرات</button>
+      </div>
+    </div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener("click",e=>e.target===ov&&ov.remove());
+  ov.querySelector("#confirmEdit").addEventListener("click",async()=>{
+    const r = await api("PUT",`/admin/api/stores/${id}`,{
+      name: ov.querySelector("#eName").value.trim(),
+      owner_name: ov.querySelector("#eOwner").value.trim(),
+      owner_phone: ov.querySelector("#eOwnerPhone").value.trim(),
+      owner_email: ov.querySelector("#eEmail").value.trim(),
+      address: ov.querySelector("#eAddr").value.trim(),
+      phone: ov.querySelector("#ePhone").value.trim(),
+      plan: ov.querySelector("#ePlan").value,
+    });
+    if (!r.success) { toast(r.message||"خطأ",false); return; }
+    toast("✅ تم التحديث"); ov.remove();
+    await loadAll(); renderStoresTable(allStores);
+  });
+};
+
+/* ═══════════════════════════════
+   الإعدادات
+═══════════════════════════════ */
+async function loadSettings() {
+  const r = await api("GET","/admin/api/settings");
+  if (!r.success) return;
+  const s = r.data;
+  $("settingsForm").innerHTML=`
+    <div class="form-row"><label>اسم المنصة</label><input id="sAppName" value="${escH(s.app_name||"")}"></div>
+    <div class="form-row"><label>رابط المنصة</label><input id="sAppUrl" value="${escH(s.app_url||"")}"></div>
+    <div class="form-row"><label>السماح بالتسجيل</label>
+      <select id="sReg"><option value="true" ${s.allow_registration?"selected":""}>مفعّل</option><option value="false" ${!s.allow_registration?"selected":""}>موقوف</option></select>
+    </div>
+    <div class="form-row"><label>الحد الأقصى للمتاجر</label><input id="sMax" type="number" value="${s.max_stores||100}"></div>
+    <div style="text-align:left;margin-top:12px">
+      <button class="btn btn-primary" id="saveSettingsBtn">💾 حفظ الإعدادات</button>
+    </div>`;
+  $("saveSettingsBtn").addEventListener("click",async()=>{
+    const r2=await api("PUT","/admin/api/settings",{
+      app_name:$("sAppName").value.trim(),
+      app_url:$("sAppUrl").value.trim(),
+      allow_registration:$("sReg").value==="true",
+      max_stores:parseInt($("sMax").value)||100,
+    });
+    toast(r2.success?"✅ تم الحفظ":(r2.message||"خطأ"),r2.success);
+  });
+}
+
+/* تغيير كلمة المرور */
+$("changePwBtn")?.addEventListener("click",async()=>{
+  const r=await api("PUT","/admin/api/password",{current:$("pwCurrent").value,newPassword:$("pwNew").value});
+  toast(r.success?"✅ تم التغيير":(r.message||"خطأ"),r.success);
+  if(r.success){$("pwCurrent").value="";$("pwNew").value="";}
+});
+
+/* ── التحقق من الجلسة عند الفتح ── */
+(async()=>{
+  const r=await api("GET","/admin/api/me");
+  if(r.success){
+    $("loginWrap").style.display="none";
+    $("appWrap").style.display="flex";
+    loadAll();
+  }
+})();
+</script>
+</body>
+</html>

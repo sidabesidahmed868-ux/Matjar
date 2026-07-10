@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>منصة إدارة المتاجر</title>
+<style>
+:root{--navy:#0f1f3d;--blue:#1a3a6b;--accent:#2563eb;--green:#059669;--red:#dc2626;--light:#f1f5f9;--border:#e2e8f0;--text:#1e293b;--muted:#64748b}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:"Segoe UI",Tahoma,Arial,sans-serif;background:var(--light);color:var(--text);direction:rtl}
+/* ── Hero ── */
+.hero{background:linear-gradient(135deg,var(--navy) 0%,#1e3a8a 50%,var(--blue) 100%);min-height:100vh;display:flex;flex-direction:column}
+.nav{display:flex;justify-content:space-between;align-items:center;padding:20px 40px;border-bottom:1px solid rgba(255,255,255,.1)}
+.nav .logo{display:flex;align-items:center;gap:10px;color:#fff;font-size:20px;font-weight:700}
+.nav .logo span{font-size:28px}
+.nav-links{display:flex;gap:10px}
+.hero-body{flex:1;display:flex;align-items:center;justify-content:center;padding:60px 20px;text-align:center}
+.hero-content h1{color:#fff;font-size:clamp(28px,5vw,52px);font-weight:800;margin-bottom:16px;line-height:1.2}
+.hero-content h1 span{color:#60a5fa}
+.hero-content p{color:rgba(255,255,255,.8);font-size:18px;margin-bottom:36px;max-width:600px;margin-inline:auto;line-height:1.6}
+.hero-actions{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+/* ── أزرار ── */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:12px 24px;border:none;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;font-family:inherit;text-decoration:none;transition:all .15s}
+.btn:hover{opacity:.88;transform:translateY(-1px)}
+.btn-primary{background:var(--accent);color:#fff}
+.btn-outline{background:transparent;color:#fff;border:2px solid rgba(255,255,255,.5)}
+.btn-outline:hover{background:rgba(255,255,255,.1)}
+.btn-success{background:var(--green);color:#fff}
+.btn-ghost{background:transparent;color:var(--muted);border:1.5px solid var(--border)}
+.btn-sm{padding:7px 14px;font-size:13px}
+/* ── ميزات ── */
+.features{padding:80px 20px;background:#fff}
+.features h2{text-align:center;font-size:32px;color:var(--navy);margin-bottom:48px}
+.features-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:24px;max-width:1100px;margin:0 auto}
+.feature-card{background:var(--light);border-radius:12px;padding:28px;text-align:center;border:1px solid var(--border)}
+.feature-card .icon{font-size:40px;margin-bottom:14px}
+.feature-card h3{font-size:17px;color:var(--navy);margin-bottom:8px}
+.feature-card p{font-size:13px;color:var(--muted);line-height:1.6}
+/* ── خطط الأسعار ── */
+.pricing{padding:80px 20px;background:var(--light)}
+.pricing h2{text-align:center;font-size:32px;color:var(--navy);margin-bottom:48px}
+.plans-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:20px;max-width:900px;margin:0 auto}
+.plan-card{background:#fff;border-radius:14px;padding:32px;border:2px solid var(--border);position:relative}
+.plan-card.popular{border-color:var(--accent)}
+.plan-card .pop-badge{position:absolute;top:-12px;right:50%;transform:translateX(50%);background:var(--accent);color:#fff;padding:3px 14px;border-radius:20px;font-size:12px;font-weight:700}
+.plan-card h3{font-size:20px;color:var(--navy);margin-bottom:8px}
+.plan-card .price{font-size:36px;font-weight:800;color:var(--accent);margin:12px 0}
+.plan-card .price span{font-size:15px;font-weight:400;color:var(--muted)}
+.plan-card ul{list-style:none;margin:20px 0;text-align:right}
+.plan-card ul li{padding:6px 0;font-size:14px;color:var(--text)}
+.plan-card ul li::before{content:"✅ ";margin-left:6px}
+.plan-card .btn{width:100%;justify-content:center;margin-top:8px}
+/* ── نموذج التسجيل ── */
+.register-section{background:linear-gradient(135deg,var(--navy),var(--blue));padding:80px 20px}
+.register-section h2{color:#fff;font-size:32px;text-align:center;margin-bottom:12px}
+.register-section p{color:rgba(255,255,255,.8);text-align:center;margin-bottom:40px;font-size:16px}
+.register-card{background:#fff;border-radius:16px;padding:40px;max-width:500px;margin:0 auto;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+.register-card h3{color:var(--navy);font-size:20px;margin-bottom:24px;text-align:center}
+.f-group{margin-bottom:16px}
+.f-group label{display:block;font-size:13px;font-weight:600;margin-bottom:5px;color:var(--text)}
+.f-group input,.f-group select{width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit;text-align:right}
+.f-group input:focus,.f-group select:focus{outline:none;border-color:var(--accent)}
+.f-group .hint{font-size:11px;color:var(--muted);margin-top:4px}
+.err-msg{color:var(--red);font-size:13px;text-align:center;min-height:20px;margin-bottom:8px}
+.success-box{background:#dcfce7;border:1px solid #86efac;border-radius:10px;padding:20px;text-align:center;display:none}
+.success-box h3{color:#166534;font-size:18px;margin-bottom:8px}
+.success-box p{color:#15803d;font-size:14px;margin-bottom:12px}
+.success-box .store-link{display:inline-block;background:var(--accent);color:#fff;padding:10px 22px;border-radius:8px;text-decoration:none;font-weight:600;margin-top:10px}
+/* ── Footer ── */
+.footer{background:var(--navy);color:rgba(255,255,255,.6);text-align:center;padding:24px;font-size:13px}
+.footer a{color:rgba(255,255,255,.8);text-decoration:none}
+/* ── Toast ── */
+#toasts{position:fixed;top:16px;left:50%;transform:translateX(-50%);z-index:999;display:flex;flex-direction:column;gap:8px;align-items:center}
+.toast{padding:10px 22px;border-radius:8px;color:#fff;font-size:13px;font-weight:600;box-shadow:0 4px 14px rgba(0,0,0,.2);animation:fi .2s}
+.toast.ok{background:var(--green)}.toast.err{background:var(--red)}
+@keyframes fi{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}
+</style>
+</head>
+<body>
+
+<div id="toasts"></div>
+
+<!-- ── Hero ── -->
+<div class="hero">
+  <nav class="nav">
+    <div class="logo"><span>🏪</span> منصة المتاجر</div>
+    <div class="nav-links">
+      <a href="#register" class="btn btn-outline btn-sm">إنشاء متجر مجاني</a>
+      <a href="/admin" class="btn btn-primary btn-sm">لوحة التحكم</a>
+    </div>
+  </nav>
+  <div class="hero-body">
+    <div class="hero-content">
+      <h1>نظام إدارة متجرك<br><span>في ثوانٍ</span></h1>
+      <p>منصة سحابية متكاملة لإدارة المبيعات والمخزون والزبناء والموردين، مع تقارير احترافية وتعدد المستخدمين</p>
+      <div class="hero-actions">
+        <a href="#register" class="btn btn-primary" style="font-size:16px;padding:14px 32px">🚀 ابدأ مجاناً الآن</a>
+        <a href="#features" class="btn btn-outline" style="font-size:16px;padding:14px 32px">اكتشف المميزات</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── المميزات ── -->
+<section class="features" id="features">
+  <h2>كل ما يحتاجه متجرك</h2>
+  <div class="features-grid">
+    <div class="feature-card"><div class="icon">🧾</div><h3>فواتير البيع والشراء</h3><p>إنشاء فواتير احترافية مع طباعة مباشرة ومتابعة الديون والمدفوعات</p></div>
+    <div class="feature-card"><div class="icon">📦</div><h3>إدارة المخزون</h3><p>تتبع الكميات وتنبيهات المخزون المنخفض وتسوية الجرد في أي وقت</p></div>
+    <div class="feature-card"><div class="icon">👥</div><h3>تعدد المستخدمين</h3><p>5 مستويات صلاحيات: مدير، مدير مساعد، بائع، مشتري، محاسب</p></div>
+    <div class="feature-card"><div class="icon">📊</div><h3>تقارير احترافية</h3><p>تقارير الأرباح والمبيعات والمشتريات والديون والمخزون مع تصدير PDF</p></div>
+    <div class="feature-card"><div class="icon">💳</div><h3>إدارة الديون</h3><p>متابعة ديون الزبناء ومستحقات الموردين مع سجل كامل للدفعات</p></div>
+    <div class="feature-card"><div class="icon">🌐</div><h3>وصول من أي مكان</h3><p>يعمل من أي جهاز وأي متصفح بدون تثبيت أي برنامج</p></div>
+  </div>
+</section>
+
+<!-- ── التسجيل ── -->
+<section class="register-section" id="register">
+  <h2>أنشئ متجرك الآن</h2>
+  <p>مجاني — لا يحتاج بطاقة ائتمانية — يعمل فوراً</p>
+
+  <div class="register-card">
+    <h3>🏪 إنشاء متجر جديد</h3>
+
+    <div class="err-msg" id="regErr"></div>
+
+    <div id="regForm">
+      <div class="f-group">
+        <label>اسم المتجر</label>
+        <input type="text" id="regStoreName" placeholder="مثال: متجر أحمد للبقالة">
+      </div>
+      <div class="f-group">
+        <label>اسم المالك</label>
+        <input type="text" id="regOwner" placeholder="الاسم الكامل">
+      </div>
+      <div class="f-group">
+        <label>رقم الهاتف</label>
+        <input type="tel" id="regPhone" placeholder="مثال: 22334455" dir="ltr">
+      </div>
+      <div class="f-group">
+        <label>كلمة مرور الدخول</label>
+        <input type="password" id="regPassword" placeholder="8 أحرف على الأقل">
+        <div class="hint">ستُستخدم لتسجيل الدخول إلى متجرك مع اسم المستخدم "admin"</div>
+      </div>
+      <div style="margin-top:20px">
+        <button class="btn btn-success" style="width:100%;justify-content:center;font-size:16px;padding:13px" id="regBtn">
+          🚀 إنشاء المتجر الآن
+        </button>
+      </div>
+      <p style="text-align:center;font-size:12px;color:var(--muted);margin-top:14px">
+        بإنشاء حساب أنت توافق على شروط الاستخدام
+      </p>
+    </div>
+
+    <div class="success-box" id="regSuccess">
+      <h3>🎉 تم إنشاء متجرك بنجاح!</h3>
+      <p>يمكنك الوصول إليه فوراً عبر الرابط أدناه<br>سجل الدخول بـ: <b>admin</b> / كلمة المرور التي اخترتها</p>
+      <a href="#" id="storeLink" class="store-link" target="_blank">🏪 فتح المتجر</a>
+      <div style="margin-top:14px;font-size:12px;color:#15803d">احتفظ بهذا الرابط لاحقاً</div>
+    </div>
+  </div>
+</section>
+
+<footer class="footer">
+  <p>منصة إدارة المتاجر © 2026 — مبني بـ Node.js بدون مكتبات خارجية</p>
+  <p style="margin-top:6px"><a href="/admin">لوحة تحكم المشرف</a></p>
+</footer>
+
+<script>
+function toast(msg, ok=true) {
+  const d = document.createElement("div");
+  d.className = `toast ${ok?"ok":"err"}`; d.textContent = msg;
+  document.getElementById("toasts").appendChild(d);
+  setTimeout(()=>d.remove(), 3500);
+}
+
+document.getElementById("regBtn").addEventListener("click", async () => {
+  const name     = document.getElementById("regStoreName").value.trim();
+  const owner    = document.getElementById("regOwner").value.trim();
+  const phone    = document.getElementById("regPhone").value.trim();
+  const password = document.getElementById("regPassword").value;
+  const errEl    = document.getElementById("regErr");
+  errEl.textContent = "";
+
+  if (!name)     { errEl.textContent = "اسم المتجر مطلوب"; return; }
+  if (!owner)    { errEl.textContent = "اسم المالك مطلوب"; return; }
+  if (!password || password.length < 6) { errEl.textContent = "كلمة المرور يجب أن تكون 6 أحرف على الأقل"; return; }
+
+  const btn = document.getElementById("regBtn");
+  btn.disabled = true; btn.textContent = "جاري الإنشاء...";
+
+  try {
+    const r = await fetch("/api/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, owner_name: owner, owner_phone: phone, admin_password: password }),
+    });
+    const data = await r.json();
+
+    if (!data.success) {
+      errEl.textContent = data.message || "حدث خطأ";
+      btn.disabled = false; btn.textContent = "🚀 إنشاء المتجر الآن";
+      return;
+    }
+
+    // نجح — إظهار رابط المتجر
+    document.getElementById("regForm").style.display = "none";
+    const successBox = document.getElementById("regSuccess");
+    successBox.style.display = "block";
+    const link = document.getElementById("storeLink");
+    link.href = data.access_url;
+    link.textContent = `🏪 ${name} — افتح المتجر`;
+    toast("✅ تم إنشاء المتجر بنجاح!");
+  } catch (e) {
+    errEl.textContent = "خطأ في الاتصال بالخادم";
+    btn.disabled = false; btn.textContent = "🚀 إنشاء المتجر الآن";
+  }
+});
+
+// تمرير سلس
+document.querySelectorAll('a[href^="#"]').forEach(a => {
+  a.addEventListener("click", e => {
+    const target = document.querySelector(a.getAttribute("href"));
+    if (target) { e.preventDefault(); target.scrollIntoView({ behavior: "smooth" }); }
+  });
+});
+</script>
+</body>
+</html>

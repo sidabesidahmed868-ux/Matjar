@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#1f3a5f">
+  <title>نظام تسيير المتجر</title>
+  <link rel="stylesheet" href="/css/styles.css">
+  <style>
+    :root { --accent-orange: #f39c12; }
+    .note-box { background:#fcf8e3;border:1px solid #f0e0a4;border-radius:6px;padding:10px 14px;font-size:13px;color:#6b5a00;margin-bottom:12px; }
+    #splash { position:fixed;inset:0;background:linear-gradient(135deg,#1f3a5f,#2e86ab);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;color:#fff;font-family:Tahoma,Arial,sans-serif;transition:opacity .4s }
+    #splash .si { font-size:60px;margin-bottom:14px }
+    #splash h1 { font-size:22px;margin:0 0 6px }
+    #splash p  { color:rgba(255,255,255,.75);font-size:13px;margin:0 0 20px }
+    #splash .bar { width:200px;height:3px;background:rgba(255,255,255,.2);border-radius:2px;overflow:hidden }
+    #splash .bar::after { content:"";display:block;height:100%;width:40%;background:#fff;border-radius:2px;animation:slide 1.2s ease-in-out infinite }
+    @keyframes slide{from{transform:translateX(-100%)}to{transform:translateX(350%)}}
+    @media(max-width:768px){.layout{flex-direction:column}.sidebar{width:100%;flex:none;flex-direction:row;overflow-x:auto;padding:6px 0}.sidebar button.nav-btn{white-space:nowrap;padding:8px 14px;font-size:13px}.cards-grid{grid-template-columns:repeat(2,1fr)!important}.modal,.modal.modal-wide{max-width:calc(100% - 20px)!important;margin:10px}}
+    @media print{.sidebar,.topbar,.toolbar{display:none!important}.content{padding:0}}
+  </style>
+</head>
+<body>
+  <div id="splash">
+    <div class="si">🏪</div>
+    <h1 id="splashTitle">جاري التحميل...</h1>
+    <p>نظام الإدارة المتكامل</p>
+    <div class="bar"></div>
+  </div>
+
+  <div id="app"></div>
+  <div id="toast-container"></div>
+
+  <!-- استخراج slug من الـ URL -->
+  <script>
+    const STORE_SLUG = location.pathname.split("/")[2] || "";
+    const API_BASE   = `/store/${STORE_SLUG}`;
+  </script>
+
+  <!-- طبقة API للمتجر -->
+  <script>
+    "use strict";
+
+    /* ── cache مركزي ── */
+    const _cache = {
+      products:[], customers:[], suppliers:[],
+      sales:[], purchases:[], payments:[], users:[],
+      settings:{ store_name:"", store_address:"", store_phone:"", low_stock_default:5 },
+    };
+
+    /* ── fetch مع credentials ── */
+    async function apiFetch(method, endpoint, data=null) {
+      const opts={method,credentials:"include",headers:{"Content-Type":"application/json"}};
+      if(data&&method!=="GET") opts.body=JSON.stringify(data);
+      try {
+        const r=await fetch(API_BASE+endpoint,opts);
+        const j=await r.json();
+        if(r.status===401&&endpoint!=="/api/auth/login"){
+          window._authFailed?.();
+          return {success:false,message:"انتهت الجلسة"};
+        }
+        return j;
+      } catch(e){ return{success:false,message:"خطأ في الاتصال"}; }
+    }
+
+    /* ── تحميل cache ── */
+    async function refreshCache() {
+      const [pr,cu,su,sa,pu,pa,se]=await Promise.all([
+        apiFetch("GET","/api/products"),  apiFetch("GET","/api/customers"),
+        apiFetch("GET","/api/suppliers"), apiFetch("GET","/api/sales"),
+        apiFetch("GET","/api/purchases"), apiFetch("GET","/api/payments"),
+        apiFetch("GET","/api/settings"),
+      ]);
+      if(pr.success) _cache.products=pr.data;
+      if(cu.success) _cache.customers=cu.data;
+      if(su.success) _cache.suppliers=su.data;
+      if(sa.success) _cache.sales=sa.data;
+      if(pu.success) _cache.purchases=pu.data;
+      if(pa.success) _cache.payments=pa.data;
+      if(se.success) _cache.settings=se.data;
+    }
+
+    /* ── DB متزامن ── */
+    const DB = {
+      load:()=>_cache, get:()=>_cache,
+      getSetting:(k,d)=>_cache.settings[k]!==undefined?_cache.settings[k]:d,
+      setSetting(k,v){_cache.settings[k]=v; apiFetch("PUT","/api/settings",{[k]:v});},
+      findById:(l,id)=>(l||[]).find(x=>Number(x.id)===Number(id))||null,
+    };
+
+    /* ── Auth ── */
+    const Auth={
+      async authenticate(u,p){const r=await apiFetch("POST","/api/auth/login",{username:u,password:p});return r.success?r.user:null;},
+      async createUser(u,p,fn,role="seller",active=true){const r=await apiFetch("POST","/api/users",{username:u,password:p,full_name:fn,role,active});if(r.success)_cache.users.push(r.data);return{success:r.success,message:r.message};},
+      async updateUser(id,{fullName,role,active,newPassword}={}){const body={};if(fullName!==undefined)body.full_name=fullName;if(role!==undefined)body.role=role;if(active!==undefined)body.active=active;if(newPassword)body.new_password=newPassword;const r=await apiFetch("PUT",`/api/users/${id}`,body);if(r.success){const u=DB.findById(_cache.users,id);if(u)Object.assign(u,r.data);}return{success:r.success,message:r.message};},
+      deleteUser(id){return apiFetch("DELETE",`/api/users/${id}`).then(r=>{if(r.success)_cache.users=_cache.users.filter(u=>Number(u.id)!==Number(id));return{success:r.success,message:r.message};});},
+    };
+
+    /* ── Models متزامن مع API ── */
+    function todayStr(){const d=new Date(),p=x=>String(x).padStart(2,"0");return`${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`;}
+    const Models={
+      getProducts:()=>_cache.products, getProduct:(id)=>DB.findById(_cache.products,id),
+      addProduct(n,c,u,q,pp,sp,ms){return apiFetch("POST","/api/products",{name:n,category:c,unit:u,quantity:q,purchase_price:pp,sale_price:sp,min_stock:ms}).then(r=>{if(r.success)_cache.products.push(r.data);return r.success?r.data:null;});},
+      updateProduct(id,f){return apiFetch("PUT",`/api/products/${id}`,f).then(r=>{if(r.success){const p=DB.findById(_cache.products,id);if(p)Object.assign(p,r.data);}return{success:r.success,message:r.message};});},
+      adjustStock(id,q){return apiFetch("PUT",`/api/products/${id}/adjust`,{quantity:q}).then(r=>{if(r.success){const p=DB.findById(_cache.products,id);if(p)p.quantity=q;}return{success:r.success,message:r.message};});},
+      deleteProduct(id){return apiFetch("DELETE",`/api/products/${id}`).then(r=>{if(r.success)_cache.products=_cache.products.filter(p=>Number(p.id)!==Number(id));return{success:r.success,message:r.message};});},
+      getLowStockProducts:()=>_cache.products.filter(p=>Number(p.quantity||0)<=Number(p.min_stock||0)),
+      getCustomers:()=>_cache.customers, getCustomer:(id)=>DB.findById(_cache.customers,id),
+      addCustomer(n,ph,a,d){return apiFetch("POST","/api/customers",{name:n,phone:ph,address:a,opening_debt:d}).then(r=>{if(r.success)_cache.customers.push(r.data);return r.success?r.data:null;});},
+      updateCustomer(id,f){return apiFetch("PUT",`/api/customers/${id}`,f).then(r=>{if(r.success){const c=DB.findById(_cache.customers,id);if(c)Object.assign(c,r.data);}return{success:r.success,message:r.message};});},
+      deleteCustomer(id){return apiFetch("DELETE",`/api/customers/${id}`).then(r=>{if(r.success)_cache.customers=_cache.customers.filter(c=>Number(c.id)!==Number(id));return{success:r.success,message:r.message};});},
+      getSuppliers:()=>_cache.suppliers, getSupplier:(id)=>DB.findById(_cache.suppliers,id),
+      addSupplier(n,ph,a,d){return apiFetch("POST","/api/suppliers",{name:n,phone:ph,address:a,opening_debt:d}).then(r=>{if(r.success)_cache.suppliers.push(r.data);return r.success?r.data:null;});},
+      updateSupplier(id,f){return apiFetch("PUT",`/api/suppliers/${id}`,f).then(r=>{if(r.success){const s=DB.findById(_cache.suppliers,id);if(s)Object.assign(s,r.data);}return{success:r.success,message:r.message};});},
+      deleteSupplier(id){return apiFetch("DELETE",`/api/suppliers/${id}`).then(r=>{if(r.success)_cache.suppliers=_cache.suppliers.filter(s=>Number(s.id)!==Number(id));return{success:r.success,message:r.message};});},
+      getSales:()=>_cache.sales, getSale:(id)=>DB.findById(_cache.sales,id),
+      createSale(opts){return apiFetch("POST","/api/sales",opts).then(async r=>{if(r.success)await refreshCache();return{success:r.success,data:r.data,message:r.message};});},
+      deleteSale(id){return apiFetch("DELETE",`/api/sales/${id}`).then(async r=>{if(r.success)await refreshCache();return{success:r.success,message:r.message};});},
+      getPurchases:()=>_cache.purchases, getPurchase:(id)=>DB.findById(_cache.purchases,id),
+      createPurchase(opts){return apiFetch("POST","/api/purchases",opts).then(async r=>{if(r.success)await refreshCache();return{success:r.success,data:r.data,message:r.message};});},
+      deletePurchase(id){return apiFetch("DELETE",`/api/purchases/${id}`).then(async r=>{if(r.success)await refreshCache();return{success:r.success,message:r.message};});},
+      getPayments:()=>_cache.payments,
+      recordCustomerPayment(id,a,n){return apiFetch("POST","/api/payments/customer",{customerId:id,amount:a,note:n}).then(async r=>{if(r.success)await refreshCache();return{success:r.success,message:r.message};});},
+      recordSupplierPayment(id,a,n){return apiFetch("POST","/api/payments/supplier",{supplierId:id,amount:a,note:n}).then(async r=>{if(r.success)await refreshCache();return{success:r.success,message:r.message};});},
+      deletePayment(id){return apiFetch("DELETE",`/api/payments/${id}`).then(async r=>{if(r.success)await refreshCache();return{success:r.success,message:r.message};});},
+      getCustomerDebts(){const c=_cache.customers.filter(x=>Number(x.debt||0)>0.001);return{customers:c,total:c.reduce((s,x)=>s+Number(x.debt||0),0)};},
+      getSupplierDebts(){const s=_cache.suppliers.filter(x=>Number(x.debt||0)>0.001);return{suppliers:s,total:s.reduce((s2,x)=>s2+Number(x.debt||0),0)};},
+      getDashboardStats(){const t=todayStr(),sales=_cache.sales;const ts=sales.filter(s=>(s.date||"").slice(0,10)===t);let profit=0;for(const s of ts){for(const it of s.items)profit+=(Number(it.price)-Number(it.cost||0))*Number(it.qty);profit-=Number(s.discount||0);}const ls=_cache.products.filter(p=>Number(p.quantity||0)<=Number(p.min_stock||0));return{today_sales_total:ts.reduce((s,x)=>s+Number(x.grand_total||0),0),today_sales_count:ts.length,today_profit:profit,total_customer_debt:_cache.customers.reduce((s,c)=>s+Math.max(0,Number(c.debt||0)),0),total_supplier_debt:_cache.suppliers.reduce((s,x)=>s+Math.max(0,Number(x.debt||0)),0),low_stock_count:ls.length,low_stock_products:ls};},
+      getRecentSales:(n=8)=>[..._cache.sales].sort((a,b)=>a.date<b.date?1:-1).slice(0,n),
+      getRevenueReport(from,to){const ir=(d)=>{const s=(d||"").slice(0,10);return s>=from&&s<=to;};const sales=_cache.sales.filter(s=>ir(s.date));const purchases=_cache.purchases.filter(p=>ir(p.date));const payments=_cache.payments.filter(p=>ir(p.date));let rev=0,cost=0,disc=0;for(const s of sales){rev+=Number(s.grand_total||0);disc+=Number(s.discount||0);for(const it of s.items)cost+=Number(it.cost||0)*Number(it.qty||0);}const tp=purchases.reduce((s,p)=>s+Number(p.total||0),0);const pi=payments.filter(p=>p.direction==="in").reduce((s,p)=>s+Number(p.amount||0),0);const po=payments.filter(p=>p.direction==="out").reduce((s,p)=>s+Number(p.amount||0),0);const cd=_cache.customers.filter(c=>Number(c.debt||0)>0.001);const sd=_cache.suppliers.filter(s=>Number(s.debt||0)>0.001);return{date_from:from,date_to:to,sales_count:sales.length,total_sales:rev,total_discount:disc,total_cost:cost,profit:rev-cost,purchases_count:purchases.length,total_purchases:tp,payments_in:pi,payments_out:po,new_customer_debt:sales.reduce((s,x)=>s+Number(x.remaining||0),0),custDebtors:cd,totalCustDebt:cd.reduce((s,c)=>s+Number(c.debt||0),0),supDebtors:sd,totalSupDebt:sd.reduce((s,x)=>s+Number(x.debt||0),0),invValue:_cache.products.reduce((s,p)=>s+Number(p.quantity||0)*Number(p.purchase_price||0),0),invSaleValue:_cache.products.reduce((s,p)=>s+Number(p.quantity||0)*Number(p.sale_price||0),0),products:_cache.products,lowStock:_cache.products.filter(p=>Number(p.quantity||0)<=Number(p.min_stock||0)),rawSales:sales,rawPurchases:purchases,storeName:_cache.settings.store_name,storeAddress:_cache.settings.store_address,storePhone:_cache.settings.store_phone};},
+      getDailySales(days=7){const r=[],sales=_cache.sales;for(let i=days-1;i>=0;i--){const d=new Date();d.setDate(d.getDate()-i);const p=x=>String(x).padStart(2,"0");const ds=`${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`;r.push({date:ds,total:sales.filter(s=>(s.date||"").slice(0,10)===ds).reduce((s,x)=>s+Number(x.grand_total||0),0)});}return r;},
+      getCustomerStatement(id){const e=[];for(const s of _cache.sales)if(Number(s.customer_id)===Number(id))e.push({date:s.date,type:"فاتورة بيع",ref:s.number,amount:s.grand_total,credit:s.paid,debit:s.remaining});for(const p of _cache.payments)if(p.person_type==="customer"&&Number(p.person_id)===Number(id)&&!p.ref_type)e.push({date:p.date,type:"دفعة",ref:"-",amount:p.amount,credit:p.amount,debit:0});return e.sort((a,b)=>a.date<b.date?-1:1);},
+      getSupplierStatement(id){const e=[];for(const p of _cache.purchases)if(Number(p.supplier_id)===Number(id))e.push({date:p.date,type:"فاتورة شراء",ref:p.number,amount:p.total,paid:p.paid,remaining:p.remaining});for(const p of _cache.payments)if(p.person_type==="supplier"&&Number(p.person_id)===Number(id)&&!p.ref_type)e.push({date:p.date,type:"دفعة",ref:"-",amount:p.amount,paid:p.amount,remaining:0});return e.sort((a,b)=>a.date<b.date?-1:1);},
+      getUsers:()=>_cache.users,
+    };
+
+    async function loadSettingsCache() { await refreshCache(); }
+  </script>
+
+  <!-- نظام الأدوار والصلاحيات -->
+  <script>
+    const CFG = {
+      DEFAULT_STORE_NAME: _cache.settings.store_name || "المتجر",
+      DEFAULT_STORE_ADDRESS: "",
+      CURRENCY: "أوقية",
+      ROLE_ADMIN:"admin", ROLE_MANAGER:"manager", ROLE_SELLER:"seller", ROLE_BUYER:"buyer", ROLE_CASHIER:"cashier",
+      ROLE_LABELS:{admin:"مدير عام",manager:"مدير مساعد",seller:"بائع",buyer:"مشتري",cashier:"محاسب"},
+      ROLE_DESC:{admin:"كامل الصلاحيات",manager:"جميع العمليات التجارية",seller:"إنشاء فواتير البيع وإدارة الزبناء",buyer:"إنشاء فواتير الشراء وإدارة المخزون",cashier:"عرض وإنشاء الفواتير والتقارير"},
+      ROLE_SECTIONS:{admin:["dashboard","sales","purchases","inventory","customers","suppliers","debts","payments","reports","users","settings"],manager:["dashboard","sales","purchases","inventory","customers","suppliers","debts","payments","reports"],seller:["dashboard","sales","inventory","customers","payments"],buyer:["dashboard","purchases","inventory","suppliers","payments"],cashier:["dashboard","sales","purchases","payments","reports","debts"]},
+      ROLE_PERMISSIONS:{admin:{canDeleteSale:true,canDeletePurchase:true,canDeletePayment:true,canEditInventory:true,canDeleteInventory:true,canAdjustStock:true,canDeleteCustomer:true,canDeleteSupplier:true,canViewReports:true,canManageUsers:true,canManageSettings:true,canExportData:true},manager:{canDeleteSale:true,canDeletePurchase:true,canDeletePayment:true,canEditInventory:true,canDeleteInventory:false,canAdjustStock:true,canDeleteCustomer:false,canDeleteSupplier:false,canViewReports:true,canManageUsers:false,canManageSettings:false,canExportData:true},seller:{canDeleteSale:false,canDeletePurchase:false,canDeletePayment:false,canEditInventory:false,canDeleteInventory:false,canAdjustStock:false,canDeleteCustomer:false,canDeleteSupplier:false,canViewReports:false,canManageUsers:false,canManageSettings:false,canExportData:false},buyer:{canDeleteSale:false,canDeletePurchase:false,canDeletePayment:false,canEditInventory:true,canDeleteInventory:false,canAdjustStock:true,canDeleteCustomer:false,canDeleteSupplier:false,canViewReports:false,canManageUsers:false,canManageSettings:false,canExportData:false},cashier:{canDeleteSale:false,canDeletePurchase:false,canDeletePayment:false,canEditInventory:false,canDeleteInventory:false,canAdjustStock:false,canDeleteCustomer:false,canDeleteSupplier:false,canViewReports:true,canManageUsers:false,canManageSettings:false,canExportData:false}},
+      SECTION_LABELS:{dashboard:"الرئيسية",sales:"المبيعات والفواتير",purchases:"المشتريات",inventory:"المخزون",customers:"الزبناء",suppliers:"الموردون",debts:"الديون",payments:"الدفعات",reports:"التقارير والمداخيل",users:"المستخدمون",settings:"إعدادات المحل"},
+      get SECTIONS_ADMIN(){return this.ROLE_SECTIONS.admin;},
+      get SECTIONS_CASHIER(){return this.ROLE_SECTIONS.seller;},
+    };
+
+    function hasPermission(p){const u=App&&App.currentUser;if(!u)return false;const r=u.role||"seller";const ps=CFG.ROLE_PERMISSIONS[r]||CFG.ROLE_PERMISSIONS.seller;return!!ps[p];}
+    function getUserSections(role){return CFG.ROLE_SECTIONS[role]||CFG.ROLE_SECTIONS.seller;}
+  </script>
+
+  <!-- أدوات الواجهة -->
+  <script>
+    function formatNumber(v){const n=Number(v||0);return Math.abs(n-Math.round(n))<1e-9?Math.round(n).toLocaleString("en-US"):n.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});}
+    function formatCurrency(v){return Number(v||0).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2})+" "+CFG.CURRENCY;}
+    function escapeHtml(s){if(s==null)return"";return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");}
+    function parseFloatSafe(v,d=0){const n=parseFloat(v);return isNaN(n)?d:n;}
+    function el(h){const d=document.createElement("div");d.innerHTML=h.trim();return d.firstElementChild;}
+
+    const Toast={_show(msg,type){let c=document.getElementById("toast-container");if(!c){c=document.createElement("div");c.id="toast-container";document.body.appendChild(c);}const e=document.createElement("div");e.className=`toast ${type}`;e.textContent=msg;c.appendChild(e);setTimeout(()=>e.remove(),3200);},success(m){this._show(m,"success");},error(m){this._show(m,"error");},warning(m){this._show(m,"warning");},};
+    function showConfirm(msg){return new Promise(res=>{const o=document.createElement("div");o.className="modal-overlay";o.innerHTML=`<div class="modal" style="max-width:400px"><div class="modal-header">تأكيد</div><div class="modal-body"><div class="confirm-msg">${escapeHtml(msg)}</div></div><div class="modal-footer"><button class="btn btn-secondary" data-action="cancel">إلغاء</button><button class="btn btn-danger" data-action="ok">تأكيد</button></div></div>`;document.body.appendChild(o);o.addEventListener("click",(e)=>{const a=e.target.getAttribute("data-action");if(a==="ok"){o.remove();res(true);}else if(a==="cancel"||e.target===o){o.remove();res(false);}});});}
+    function openForm(title,fields,opts={}){return new Promise(res=>{const o=document.createElement("div");o.className="modal-overlay";let bh="";for(const f of fields){bh+=`<div class="form-row"><label>${escapeHtml(f.label)}</label><div class="field">`;const v=f.default!==undefined&&f.default!==null?f.default:"";if(f.type==="combo"){bh+=`<select data-key="${f.key}">`;for(const opt of(f.options||[])){const sel=String(opt)===String(v)?"selected":"";bh+=`<option value="${escapeHtml(opt)}" ${sel}>${escapeHtml(opt)}</option>`;}bh+=`</select>`;}else if(f.type==="readonly"){bh+=`<input type="text" data-key="${f.key}" value="${escapeHtml(v)}" readonly>`;}else if(f.type==="password"){bh+=`<input type="password" data-key="${f.key}" value="${escapeHtml(v)}" autocomplete="new-password">`;}else if(f.type==="number"){bh+=`<input type="number" step="any" data-key="${f.key}" value="${escapeHtml(v)}">`;}else{bh+=`<input type="text" data-key="${f.key}" value="${escapeHtml(v)}">`;}bh+=`</div></div>`;}o.innerHTML=`<div class="modal"><div class="modal-header">${escapeHtml(title)}</div><div class="modal-body">${bh}</div><div class="modal-footer"><button class="btn btn-secondary" data-action="cancel">إلغاء</button><button class="btn btn-success" data-action="save">حفظ</button></div></div>`;document.body.appendChild(o);const close=(r)=>{o.remove();res(r);};o.addEventListener("click",(e)=>{const a=e.target.getAttribute("data-action");if(a==="save"){const vals={};for(const f of fields){const inp=o.querySelector(`[data-key="${f.key}"]`);let raw=inp.value;if(f.type==="number"){const n=parseFloat(raw);if(isNaN(n)){Toast.error(`${f.label}: قيمة غير صحيحة`);return;}if(f.min!==undefined&&n<f.min){Toast.error(`${f.label} يجب ألا يكون أقل من ${f.min}`);return;}vals[f.key]=n;}else if(f.required&&!raw.trim()){Toast.error(`${f.label} مطلوب`);return;}else{vals[f.key]=f.type==="password"?raw:raw.trim();}}close(vals);}else if(a==="cancel"||e.target===o)close(null);});setTimeout(()=>{const fi=o.querySelector("input:not([readonly]),select,textarea");if(fi)fi.focus();},50);});}
+    function openModal(title,bodyHtml,{wide=false,footerHtml=""}={}){const o=document.createElement("div");o.className="modal-overlay";o.innerHTML=`<div class="modal ${wide?"modal-wide":""}"><div class="modal-header">${escapeHtml(title)}<button class="btn btn-sm btn-secondary" data-action="close" style="float:left">إغلاق</button></div><div class="modal-body">${bodyHtml}</div>${footerHtml?`<div class="modal-footer">${footerHtml}</div>`:""}</div>`;document.body.appendChild(o);o.addEventListener("click",(e)=>{if(e.target===o||e.target.getAttribute("data-action")==="close")o.remove();});return o;}
+    function tableHtml(cols,rows,empty="لا توجد بيانات"){let h=`<div class="table-wrap"><table><thead><tr>`;for(const c of cols)h+=`<th${c.width?` style="min-width:${c.width}px"`:""} >${escapeHtml(c.label)}</th>`;h+=`</tr></thead><tbody>`;if(!rows||!rows.length){h+=`<tr class="empty-row"><td colspan="${cols.length}">${escapeHtml(empty)}</td></tr>`;}else{for(const row of rows){const cls=row._class||"";const id=row._id!==undefined?`data-id="${escapeHtml(String(row._id))}"` :"";h+=`<tr class="${cls}" ${id}>`;for(const c of cols){const v=row[c.key];h+=`<td>${v==null?"":v}</td>`;}h+=`</tr>`;}}h+=`</tbody></table></div>`;return h;}
+    function showLoading(){const d=document.createElement("div");d.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,.15);display:flex;align-items:center;justify-content:center;z-index:800";d.id="gLoader";d.innerHTML=`<div style="width:40px;height:40px;border:4px solid #fff;border-top-color:#2e86ab;border-radius:50%;animation:spin .8s linear infinite"></div><style>@keyframes spin{to{transform:rotate(360deg)}}</style>`;document.body.appendChild(d);}
+    function hideLoading(){const d=document.getElementById("gLoader");if(d)d.remove();}
+  </script>
+
+  <!-- App الرئيسي -->
+  <script>
+    const Sections = {};
+
+    const App = {
+      currentUser: null, currentSection: "dashboard", clockInterval: null,
+
+      async init() {
+        // التحقق من الجلسة
+        try {
+          const r = await apiFetch("GET","/api/auth/me");
+          if (r.success) {
+            this.currentUser = r.user;
+            // تحديث اسم المتجر في splashTitle
+            if (r.store) document.getElementById("splashTitle").textContent = r.store.name;
+            await refreshCache();
+            this.renderMain();
+          } else {
+            this.renderLogin();
+          }
+        } catch(e) { this.renderLogin(); }
+        finally {
+          setTimeout(()=>{ const s=document.getElementById("splash"); if(s){s.style.opacity="0";setTimeout(()=>s.remove(),400);} }, 700);
+        }
+      },
+
+      renderLogin() {
+        const storeName = _cache.settings.store_name || "المتجر";
+        document.getElementById("app").innerHTML=`
+          <div class="login-screen">
+            <div class="login-card">
+              <h1 id="loginTitle">${escapeHtml(storeName)}</h1>
+              <div class="login-sub">نظام تسيير المتجر</div>
+              <div class="login-error" id="loginError"></div>
+              <form id="loginForm">
+                <div class="form-row"><label>اسم المستخدم</label><input type="text" id="loginUsername" autocomplete="username" autofocus></div>
+                <div class="form-row"><label>كلمة المرور</label><input type="password" id="loginPassword" autocomplete="current-password"></div>
+                <button type="submit" class="btn btn-primary">تسجيل الدخول</button>
+              </form>
+              <div class="login-hint">المستخدم الافتراضي: admin / admin123</div>
+            </div>
+          </div>`;
+        document.getElementById("loginForm").addEventListener("submit",async e=>{
+          e.preventDefault();
+          const u=document.getElementById("loginUsername").value;
+          const p=document.getElementById("loginPassword").value;
+          const err=document.getElementById("loginError");
+          const btn=e.target.querySelector("button");
+          err.textContent=""; btn.disabled=true; btn.textContent="جاري التحقق...";
+          const user=await Auth.authenticate(u,p);
+          btn.disabled=false; btn.textContent="تسجيل الدخول";
+          if(!user){err.textContent="اسم المستخدم أو كلمة المرور غير صحيحة";return;}
+          this.currentUser=user;
+          await refreshCache();
+          this.renderMain();
+        });
+      },
+
+      async logout(){
+        await apiFetch("POST","/api/auth/logout");
+        if(this.clockInterval)clearInterval(this.clockInterval);
+        this.currentUser=null; this.renderLogin();
+      },
+
+      isAdmin(){return this.currentUser&&this.currentUser.role==="admin";},
+      getRole(){return this.currentUser?(this.currentUser.role||"seller"):"seller";},
+      can(p){return hasPermission(p);},
+      get root(){return document.getElementById("app");},
+
+      renderMain(){
+        const storeName=DB.getSetting("store_name",CFG.DEFAULT_STORE_NAME);
+        const sections=getUserSections(this.getRole());
+        if(!sections.includes(this.currentSection))this.currentSection="dashboard";
+        const roleLabel=CFG.ROLE_LABELS[this.currentUser.role]||this.currentUser.role;
+        const roleIcon={admin:"👑",manager:"🧑‍💼",seller:"🛒",buyer:"📦",cashier:"💰"}[this.currentUser.role]||"👤";
+        const roleBadge={admin:"#e74c3c",manager:"#f39c12",seller:"#27ae60",buyer:"#2e86ab",cashier:"#9b59b6"}[this.currentUser.role]||"#7f8c8d";
+
+        document.getElementById("app").innerHTML=`
+          <div class="topbar">
+            <div class="store-title" id="storeTitle">${escapeHtml(storeName)}</div>
+            <div class="topbar-left">
+              <span class="clock" id="topClock"></span>
+              <span class="user-info" style="display:flex;align-items:center;gap:6px">
+                ${escapeHtml(this.currentUser.full_name||this.currentUser.username)}
+                <span style="background:${roleBadge};color:#fff;padding:2px 8px;border-radius:10px;font-size:12px;font-weight:bold">${roleIcon} ${escapeHtml(roleLabel)}</span>
+              </span>
+              <button class="btn btn-danger btn-sm" id="logoutBtn">تسجيل الخروج</button>
+            </div>
+          </div>
+          <div class="layout">
+            <div class="sidebar" id="sidebar"></div>
+            <div class="content" id="content"></div>
+          </div>`;
+
+        document.getElementById("logoutBtn").addEventListener("click",()=>this.logout());
+        const sidebar=document.getElementById("sidebar");
+        for(const key of sections){
+          const btn=document.createElement("button");
+          btn.className="nav-btn"+(key===this.currentSection?" active":"");
+          btn.textContent=CFG.SECTION_LABELS[key]||key;
+          btn.dataset.section=key;
+          btn.addEventListener("click",()=>this.navigateTo(key));
+          sidebar.appendChild(btn);
+        }
+        this._tickClock();
+        this.clockInterval=setInterval(()=>this._tickClock(),1000);
+        this.renderSection(this.currentSection);
+      },
+
+      _tickClock(){const el=document.getElementById("topClock");if(!el)return;const d=new Date(),p=x=>String(x).padStart(2,"0");el.textContent=`${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;},
+
+      navigateTo(section){
+        this.currentSection=section;
+        document.querySelectorAll(".sidebar .nav-btn").forEach(b=>b.classList.toggle("active",b.dataset.section===section));
+        this.renderSection(section);
+      },
+
+      async renderSection(key){
+        const content=document.getElementById("content"); if(!content)return;
+        showLoading();
+        try{
+          switch(key){
+            case "dashboard": Sections.renderDashboard&&Sections.renderDashboard(content); break;
+            case "inventory":  Sections.renderInventory&&Sections.renderInventory(content); break;
+            case "customers":  Sections.renderCustomers&&Sections.renderCustomers(content); break;
+            case "suppliers":  Sections.renderSuppliers&&Sections.renderSuppliers(content); break;
+            case "sales":      Sections.renderSales&&Sections.renderSales(content); break;
+            case "purchases":  Sections.renderPurchases&&Sections.renderPurchases(content); break;
+            case "debts":      Sections.renderDebts&&Sections.renderDebts(content); break;
+            case "payments":   Sections.renderPayments&&Sections.renderPayments(content); break;
+            case "reports":    Sections.renderReports&&Sections.renderReports(content); break;
+            case "users":      Sections.renderUsers&&Sections.renderUsers(content); break;
+            case "settings":   Sections.renderSettings&&Sections.renderSettings(content); break;
+            default: content.innerHTML=`<div class="section">قسم غير معروف</div>`;
+          }
+        } finally { hideLoading(); }
+      },
+
+      refreshCurrentSection(){this.renderSection(this.currentSection);},
+      refreshRelated(sections){if(sections.includes(this.currentSection))this.renderSection(this.currentSection);},
+      updateStoreTitle(name){const el=document.getElementById("storeTitle");if(el)el.textContent=name;},
+    };
+
+    // معالجة انتهاء الجلسة
+    window._authFailed = ()=>{ App.currentUser=null; App.renderLogin(); };
+
+    document.addEventListener("DOMContentLoaded",()=>App.init());
+  </script>
+
+  <!-- أقسام التطبيق -->
+  <script src="/js/sections2.js"></script>
+</body>
+</html>
